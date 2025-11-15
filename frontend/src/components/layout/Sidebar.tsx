@@ -36,7 +36,7 @@ export default function Sidebar() {
         <div className="flex items-center justify-center py-6 border-b border-blue-800">
           <div className="w-14 h-14 rounded-full bg-white overflow-hidden">
             <img 
-              src="https://via.placeholder.com/56" 
+              src="https://c0.klipartz.com/pngpicture/122/453/gratis-png-iconos-de-computadora-perfil-de-usuario-avatar-femenino-perfil-thumbnail.png" 
               alt="Profile" 
               className="w-full h-full object-cover"
             />

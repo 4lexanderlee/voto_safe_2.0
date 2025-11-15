@@ -6,7 +6,7 @@ export default function DashboardPage() {
     <div className="max-w-7xl mx-auto">
       {/* Saludo */}
       <h1 className="text-3xl font-semibold text-gray-800 mb-8">
-        Hola, Jose Mario
+        Hola, Macarena Andrea
       </h1>
 
       {/* Cards de Estadísticas */}
