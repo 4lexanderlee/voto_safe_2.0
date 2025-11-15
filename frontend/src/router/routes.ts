@@ -5,6 +5,7 @@ export const ADMIN_ROUTES = {
   ELECTIONS: '/admin/elections',
   BALLOTS: '/admin/ballots',
   VOTERS: '/admin/voters',
-  PARTIES: '/admin/parties',
   STATISTICS: '/admin/statistics',
+  PARTIES: '/admin/parties',
+  PARTY_DETAIL: '/admin/parties/:electionId',
 } as const;

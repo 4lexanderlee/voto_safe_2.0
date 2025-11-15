@@ -1,0 +1,1 @@
+//Tarjeta clickeable de elección

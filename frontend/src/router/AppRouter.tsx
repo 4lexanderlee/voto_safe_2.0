@@ -12,6 +12,7 @@ import PartiesPage from "@/pages/admin/Parties/PartiesPage";
 import LandingPage from "@/pages/landing/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+import PartyDetailPage from "@/pages/admin/Parties/PartyDetailPage";
 
 
 export const routes = [
@@ -37,6 +38,7 @@ children: [
 { path: "ballots", element: <BallotsPage /> },
 { path: "voters", element: <VotersPage /> },
 { path: "parties", element: <PartiesPage /> },
+{ path: "parties/:electionId", element: <PartyDetailPage /> },
 { path: "statistics", element: <StatisticsPage /> },
 ],
 },
