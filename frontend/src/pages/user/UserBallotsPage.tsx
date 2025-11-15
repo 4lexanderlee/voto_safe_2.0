@@ -1,4 +1,4 @@
-// src/pages/admin/Ballots/BallotsPage.tsx
+// src/pages/user/UserBallotsPage.tsx
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +7,7 @@ import { useBallotsData } from "@/hooks/useBallotsData";
 import BallotCard from "@/components/voting/BallotCard";
 import BallotGuide from "@/components/voting/BallotGuide";
 
-export default function BallotsPage() {
+export default function UserBallotsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { ballots, loading } = useBallotsData(user?.id || "");
@@ -20,7 +20,7 @@ export default function BallotsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64">
         <p className="text-gray-500 text-lg">Cargando cédulas...</p>
       </div>
     );
@@ -31,18 +31,20 @@ export default function BallotsPage() {
       alert("No puedes votar en esta elección en este momento");
       return;
     }
-    navigate(`/admin/ballots/${electionId}`);
+    navigate(`/user/ballots/${electionId}`);
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold text-gray-800 mb-2">
-            Selecciona tu Cédula de Votación
+            Mis Cédulas de Votación
           </h1>
-          <p className="text-gray-600">Administrador: {user.fullName}</p>
+          <p className="text-gray-600">
+            Selecciona una elección para emitir tu voto
+          </p>
         </div>
         <button
           onClick={() => setShowGuide(!showGuide)}
@@ -59,6 +61,9 @@ export default function BallotsPage() {
             <div className="bg-[#eaf2fc] rounded-[30px] p-12 shadow-[0_4px_12px_rgba(182,187,211,0.3)] text-center">
               <p className="text-gray-500 text-lg">
                 No hay cédulas de votación disponibles.
+              </p>
+              <p className="text-gray-400 text-sm mt-2">
+                Las elecciones aparecerán aquí cuando estén activas.
               </p>
             </div>
           ) : (
