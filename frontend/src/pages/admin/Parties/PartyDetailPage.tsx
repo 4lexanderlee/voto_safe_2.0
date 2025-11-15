@@ -1,25 +1,25 @@
 // src/pages/admin/Parties/PartyDetailPage.tsx
 
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Upload, Plus } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { Upload } from "lucide-react";
 import { useParties } from "@/hooks/useParties";
 import { localStorageUtils } from "@/utils/localStorage";
 import PartyCard from "@/components/parties/PartyCard";
 import AddPartyModal from "@/components/parties/AddPartyModal";
 import ImportCSVModal from "@/components/parties/ImportCSVModal";
+import type { Party } from "@/types/party.types";
 
 export default function PartyDetailPage() {
-  const { electionId } = useParams();
-  const navigate = useNavigate();
-  const { parties, loading, addParty, updateParty, deleteParty } = useParties(electionId);
+  const { electionId } = useParams<{ electionId: string }>();
+  const { parties, loading, addParty, updateParty, deleteParty, addMultipleParties } = useParties(electionId);
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [editingParty, setEditingParty] = useState(null);
+  const [editingParty, setEditingParty] = useState<Party | null>(null);
 
   // Obtener datos de la elección
-  const election = localStorageUtils.getElectionById(electionId);
+  const election = localStorageUtils.getElectionById(electionId || "");
   
   if (!election) {
     return (
@@ -29,37 +29,51 @@ export default function PartyDetailPage() {
     );
   }
 
-  const handleEditParty = (party) => {
+  const handleEditParty = (party: Party) => {
     setEditingParty(party);
     setShowAddModal(true);
   };
 
-  const handleSaveParty = (partyData) => {
+  const handleSaveParty = (partyData: Omit<Party, 'id' | 'electionId' | 'electionName' | 'createdAt'>) => {
     try {
+      const fullPartyData: Party = {
+        id: editingParty?.id || crypto.randomUUID(),
+        electionId: election.id,
+        electionName: election.name,
+        createdAt: editingParty?.createdAt || new Date().toISOString(),
+        ...partyData,
+      };
+
       if (editingParty) {
-        updateParty(editingParty.id, {
-          ...partyData,
-          electionId,
-          electionName: election.name,
-        });
+        updateParty(editingParty.id, fullPartyData);
       } else {
-        addParty({
-          ...partyData,
-          electionId,
-          electionName: election.name,
-        });
+        addParty(fullPartyData);
       }
+      
       setShowAddModal(false);
       setEditingParty(null);
     } catch (error) {
-      alert(error.message);
+      if (error instanceof Error) {
+        alert(error.message);
+      }
     }
   };
 
-  const handleDeleteParty = (partyId) => {
+  const handleDeleteParty = (partyId: string) => {
     if (confirm("¿Estás seguro de eliminar este partido?")) {
       deleteParty(partyId);
     }
+  };
+
+  const handleImportCSV = (importedParties: Omit<Party, 'id' | 'createdAt'>[]) => {
+    const partiesWithMetadata: Party[] = importedParties.map(p => ({
+      ...p,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    }));
+
+    addMultipleParties(partiesWithMetadata);
+    setShowImportModal(false);
   };
 
   if (loading) {
@@ -75,7 +89,7 @@ export default function PartyDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-800 mb-2">
+          <h1 className="text-3xl font-semibold text-gray-800 mb-2 uppercase">
             {election.name}
           </h1>
           <p className="text-gray-600 text-sm">
@@ -118,7 +132,10 @@ export default function PartyDetailPage() {
       {/* Botón Agregar */}
       <div className="flex justify-center">
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setEditingParty(null);
+            setShowAddModal(true);
+          }}
           className="bg-green-500 text-white py-4 px-12 rounded-[30px] font-semibold text-lg hover:bg-green-600 transition-colors shadow-[0_4px_12px_rgba(182,187,211,0.3)]"
         >
           + AGREGAR
@@ -141,10 +158,7 @@ export default function PartyDetailPage() {
         isOpen={showImportModal}
         election={election}
         onClose={() => setShowImportModal(false)}
-        onImport={(parties) => {
-          // Aquí irá la lógica de importación
-          console.log("Importar partidos:", parties);
-        }}
+        onImport={handleImportCSV}
       />
     </div>
   );
