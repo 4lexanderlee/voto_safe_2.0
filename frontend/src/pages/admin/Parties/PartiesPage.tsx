@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SlidersHorizontal } from "lucide-react";
 import { useActiveElections } from "@/hooks/useActiveElections";
-import ElectionCardForParties from "@/components/parties/ElectionCardForParties";
-import ElectionFiltersForParties from "@/components/parties/ElectionFiltersForParties";
+import ElectionCardForParties from "../../../components/parties/ElectionCardForParties";
+import ElectionFiltersForParties from "../../../components/parties/ElectionFiltersForParties";
 
 export default function PartiesPage() {
   const navigate = useNavigate();
