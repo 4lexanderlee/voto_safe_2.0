@@ -3,6 +3,8 @@
 // ===============================================
 import { useState, useEffect } from 'react';
 import { ChevronDown, MapPin } from 'lucide-react';
+import { PieChart, pieArcLabelClasses } from '@mui/x-charts/PieChart';
+import { BarChart } from '@mui/x-charts/BarChart';
 
 // Tipos
 interface Election {
@@ -37,32 +39,39 @@ interface Vote {
 interface Party {
   id: string;
   name: string;
-  logo?: string;
+  logoUrl?: string;
   color?: string;
 }
 
 const StatisticsPage = () => {
   const [selectedElection, setSelectedElection] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [hoveredSection, setHoveredSection] = useState(null);
   
   const [selectedDepartamento, setSelectedDepartamento] = useState('');
-  const [selectedProvincia, setSelectedProvincia] = useState('');
-  const [selectedDistrito, setSelectedDistrito] = useState('');
   const [isDepartamentoOpen, setIsDepartamentoOpen] = useState(false);
-  const [isProvinciaOpen, setIsProvinciaOpen] = useState(false);
-  const [isDistritoOpen, setIsDistritoOpen] = useState(false);
 
   // Estados para datos dinámicos
   const [elections, setElections] = useState<Election[]>([]);
   const [allVotes, setAllVotes] = useState<UserVote[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
 
+  // Key para reiniciar animación del gráfico
+  const [chartKey, setChartKey] = useState(0);
+
   // Cargar datos del localStorage
   useEffect(() => {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recargar datos cuando cambie la elección seleccionada
+  useEffect(() => {
+    if (selectedElection) {
+      loadData();
+      setChartKey(prev => prev + 1); // Reiniciar animación
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedElection]);
 
   const loadData = () => {
     try {
@@ -92,13 +101,32 @@ const StatisticsPage = () => {
       const loadedParties = partiesData ? JSON.parse(partiesData) : [];
       setParties(loadedParties);
     } catch (error) {
-      console.error('Error cargando datos:', error);
+      console.error('❌ Error cargando datos:', error);
     }
   };
 
   // Obtener elección actual
   const getCurrentElection = () => {
     return elections.find(e => e.name === selectedElection);
+  };
+
+  // Generar colores únicos para cada partido
+  const generateUniqueColors = (count: number) => {
+    const baseColors = [
+      '#8B5CF6', '#10B981', '#EF4444', '#F59E0B', '#3B82F6', 
+      '#EC4899', '#14B8A6', '#F97316', '#A855F7', '#22C55E',
+      '#EAB308', '#06B6D4', '#F43F5E', '#84CC16', '#8B5CF6'
+    ];
+    
+    // Si hay más partidos que colores base, generar colores adicionales
+    if (count > baseColors.length) {
+      for (let i = baseColors.length; i < count; i++) {
+        const hue = (i * 137.508) % 360; // Proporción áurea para distribución uniforme
+        baseColors.push(`hsl(${hue}, 65%, 55%)`);
+      }
+    }
+    
+    return baseColors.slice(0, count);
   };
 
   // Calcular estadísticas de la elección actual
@@ -109,15 +137,17 @@ const StatisticsPage = () => {
     // Filtrar votos de esta elección
     const electionVotes = allVotes.filter(v => v.electionId === election.id);
     
-    // Contar votos por partido
+    // Contar votos por partido y guardar nombres de candidatos
     const partyVotes: Record<string, number> = {};
     const partyNames: Record<string, string> = {};
+    const candidateNames: Record<string, string> = {};
     
     electionVotes.forEach(userVote => {
       userVote.votes.forEach(vote => {
         if (!partyVotes[vote.partyId]) {
           partyVotes[vote.partyId] = 0;
           partyNames[vote.partyId] = vote.partyName;
+          candidateNames[vote.partyId] = vote.candidateName; // Guardar nombre del candidato
         }
         partyVotes[vote.partyId]++;
       });
@@ -126,16 +156,27 @@ const StatisticsPage = () => {
     // Calcular totales
     const totalVotes = Object.values(partyVotes).reduce((a, b) => a + b, 0);
     
+    // Generar colores únicos
+    const uniqueColors = generateUniqueColors(Object.keys(partyVotes).length);
+    
     // Crear array de candidatos con porcentajes
-    const candidatesData = Object.entries(partyVotes).map(([partyId, votes]) => {
+    const candidatesData = Object.entries(partyVotes).map(([partyId, votes], index) => {
       const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+      
       const party = parties.find(p => p.id === partyId);
+      const logoUrl = party?.logoUrl || '';
+      
+      // Usar color del partido si existe, sino usar color único generado
+      const color = party?.color || uniqueColors[index];
+      
       return {
         partyId,
         name: partyNames[partyId],
+        candidateName: candidateNames[partyId], // Agregar nombre del candidato
         votes,
         percentage,
-        color: party?.color || getRandomColor(),
+        color: color,
+        logoUrl: logoUrl,
       };
     }).sort((a, b) => b.percentage - a.percentage);
 
@@ -146,29 +187,26 @@ const StatisticsPage = () => {
     };
   };
 
-  const getRandomColor = () => {
-    const colors = ['#8B5CF6', '#10B981', '#EF4444', '#F59E0B', '#3B82F6', '#EC4899'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
   const stats = calculateElectionStats();
+
+  // Preparar datos para MUI PieChart
+  const pieChartData = stats?.candidates.map((candidate, index) => ({
+    id: index,
+    value: candidate.percentage,
+    label: `${candidate.name} - ${candidate.percentage}%`,
+    color: candidate.color,
+  })) || [];
+
+  // Preparar datos para MUI BarChart
+  const barChartData = stats?.candidates.map((candidate) => ({
+    name: candidate.name,
+    percentage: candidate.percentage,
+  })) || [];
 
   const departamentos = [
     'Lima', 'Arequipa', 'Cusco', 'La Libertad', 'Piura', 
     'Lambayeque', 'Junín', 'Puno', 'Cajamarca', 'Ica'
   ];
-
-  const provincias = {
-    'Lima': ['Lima', 'Barranca', 'Cañete', 'Huaral'],
-    'Arequipa': ['Arequipa', 'Camaná', 'Caravelí'],
-    'Cusco': ['Cusco', 'Acomayo', 'Anta', 'Calca']
-  };
-
-  const distritos = {
-    'Lima': ['San Juan de Lurigancho', 'Miraflores', 'San Borja', 'Surco'],
-    'Arequipa': ['Arequipa', 'Cayma', 'Cerro Colorado'],
-    'Cusco': ['Cusco', 'San Jerónimo', 'San Sebastián']
-  };
 
   // Estadísticas regionales simuladas
   const regionalStats = {
@@ -181,6 +219,7 @@ const StatisticsPage = () => {
     name: c.name.split(' ').slice(0, 2).join('\n'),
     percentage: c.percentage,
     color: c.color,
+    logoUrl: c.logoUrl,
     height: (c.percentage / 100) * 280
   })) || [];
 
@@ -274,20 +313,39 @@ const StatisticsPage = () => {
                 {selectedElection}
               </h2>
               <div className="grid grid-cols-4 gap-8">
-                {stats.candidates.slice(0, 4).map((candidate) => (
-                  <div key={candidate.partyId} className="bg-white rounded-2xl p-6 shadow-md flex flex-col items-center">
-                    <div 
-                      className="w-32 h-32 rounded-2xl flex items-center justify-center mb-4 shadow-md"
-                      style={{ backgroundColor: candidate.color }}
-                    >
-                      <div className="text-white font-black text-5xl">
-                        {candidate.name.charAt(0)}
+                {stats.candidates.slice(0, 4).map((candidate) => {
+                  return (
+                    <div key={candidate.partyId} className="bg-white rounded-2xl p-6 shadow-md flex flex-col items-center">
+                      <div 
+                        className="w-32 h-32 rounded-2xl flex items-center justify-center mb-4 shadow-md overflow-hidden"
+                        style={{ backgroundColor: candidate.logoUrl && candidate.logoUrl.trim() !== '' ? 'white' : candidate.color }}
+                      >
+                        {candidate.logoUrl && candidate.logoUrl.trim() !== '' ? (
+                          <img 
+                            src={candidate.logoUrl} 
+                            alt={candidate.name}
+                            className="w-full h-full object-contain p-2"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              if (target.parentElement) {
+                                target.parentElement.style.backgroundColor = candidate.color;
+                                target.parentElement.innerHTML = `<div class="text-white font-black text-5xl">${candidate.name.charAt(0)}</div>`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="text-white font-black text-5xl">
+                            {candidate.name.charAt(0)}
+                          </div>
+                        )}
                       </div>
+                      <h3 className="font-semibold text-gray-800 mb-1 text-base text-center">{candidate.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2 text-center">{candidate.candidateName}</p>
+                      <p className="text-4xl font-bold text-gray-900">{candidate.percentage}%</p>
                     </div>
-                    <h3 className="font-semibold text-gray-800 mb-2 text-base text-center">{candidate.name}</h3>
-                    <p className="text-4xl font-bold text-gray-900">{candidate.percentage}%</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -296,31 +354,43 @@ const StatisticsPage = () => {
                 <h3 className="text-base font-bold text-gray-800 mb-8 text-center uppercase">
                   Diagrama de Barras Horizontal
                 </h3>
-                <div className="space-y-6">
-                  {stats.candidates.map((candidate) => (
-                    <div key={candidate.partyId} className="flex items-center gap-4">
-                      <div className="w-20 text-xs font-semibold text-gray-700 text-right leading-tight">
-                        {candidate.name}
-                      </div>
-                      <div className="flex-1 relative">
-                        <div className="bg-gray-100 rounded h-10"></div>
-                        <div 
-                          className="absolute top-0 left-0 h-10 rounded transition-all duration-500" 
-                          style={{ 
-                            width: `${candidate.percentage}%`,
-                            backgroundColor: candidate.color
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between mt-6 text-xs text-gray-600 font-medium ml-24">
-                  <span>20%</span>
-                  <span>40%</span>
-                  <span>60%</span>
-                  <span>80%</span>
-                  <span>100%</span>
+                <div className="w-full flex justify-center">
+                  <BarChart
+                    key={chartKey}
+                    dataset={barChartData}
+                    yAxis={[{ scaleType: 'band', dataKey: 'name' }]}
+                    series={stats.candidates.map((candidate, index) => ({
+                      dataKey: 'percentage',
+                      label: candidate.name,
+                      valueFormatter: (value: number | null) => value ? `${value}%` : '0%',
+                      color: candidate.color,
+                      id: `series-${index}`,
+                    }))}
+                    xAxis={[{ 
+                      label: 'Porcentaje (%)',
+                      min: 0,
+                      max: 100,
+                    }]}
+                    layout="horizontal"
+                    height={Math.max(400, stats.candidates.length * 80)}
+                    margin={{ left: 150, right: 30, top: 30, bottom: 60 }}
+                    colors={stats.candidates.map(c => c.color)}
+                    slotProps={{
+                      legend: { hidden: true },
+                    }}
+                    sx={{
+                      '& .MuiChartsAxis-tickLabel': {
+                        fontSize: 13,
+                        fontWeight: 600,
+                        fill: '#374151',
+                      },
+                      '& .MuiChartsAxis-label': {
+                        fontSize: 14,
+                        fontWeight: 700,
+                        fill: '#374151',
+                      },
+                    }}
+                  />
                 </div>
               </div>
 
@@ -328,72 +398,55 @@ const StatisticsPage = () => {
                 <h3 className="text-base font-bold text-gray-800 mb-8 text-center uppercase">
                   Diagrama Circular
                 </h3>
-                <div className="flex items-center justify-center gap-12">
-                  <div className="relative w-64 h-64">
-                    <svg viewBox="0 0 100 100" className="w-full h-full" style={{ transform: 'rotate(-90deg)' }}>
-                      {(() => {
-                        let currentAngle = 0;
-                        return stats.candidates.map((candidate) => {
-                          const startAngle = currentAngle;
-                          const angleSize = (candidate.percentage / 100) * 360;
-                          currentAngle += angleSize;
-                          
-                          const startRad = (startAngle * Math.PI) / 180;
-                          const endRad = (currentAngle * Math.PI) / 180;
-                          
-                          const x1 = 50 + 40 * Math.cos(startRad);
-                          const y1 = 50 + 40 * Math.sin(startRad);
-                          const x2 = 50 + 40 * Math.cos(endRad);
-                          const y2 = 50 + 40 * Math.sin(endRad);
-                          
-                          const largeArc = angleSize > 180 ? 1 : 0;
-                          
-                          return (
-                            <path
-                              key={candidate.partyId}
-                              d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                              fill={candidate.color}
-                              className="transition-all cursor-pointer"
-                              style={{ opacity: hoveredSection === candidate.partyId ? 0.8 : 1 }}
-                              onMouseEnter={() => setHoveredSection(candidate.partyId)}
-                              onMouseLeave={() => setHoveredSection(null)}
-                            />
-                          );
-                        });
-                      })()}
-                    </svg>
-                    
-                    {hoveredSection && (() => {
-                      const candidate = stats.candidates.find(c => c.partyId === hoveredSection);
-                      if (!candidate) return null;
-                      
-                      return (
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
-                          <div 
-                            className="text-white font-bold text-lg px-4 py-2 rounded-lg shadow-xl border-2 border-white whitespace-nowrap"
-                            style={{ backgroundColor: candidate.color }}
-                          >
-                            {candidate.name} - {candidate.percentage}%
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-bold text-gray-800 mb-6 text-sm uppercase">Leyenda</h4>
-                    {stats.candidates.map((candidate) => (
-                      <div key={candidate.partyId} className="flex items-center gap-3">
-                        <div 
-                          className="w-10 h-6 rounded shadow-sm" 
-                          style={{ backgroundColor: candidate.color }}
-                        ></div>
-                        <span className="text-sm font-semibold text-gray-700 uppercase">
-                          {candidate.name} - {candidate.percentage}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex items-center justify-center">
+                  <PieChart
+                    key={chartKey}
+                    series={[
+                      {
+                        data: pieChartData,
+                        arcLabel: (item) => `${item.value}%`,
+                        highlightScope: { faded: 'none', highlighted: 'item' },
+                      }
+                    ]}
+                    width={600}
+                    height={400}
+                    colors={pieChartData.map(d => d.color)}
+                    slotProps={{
+                      legend: { 
+                        direction: 'column',
+                        position: { vertical: 'middle', horizontal: 'right' },
+                        padding: 0,
+                        itemMarkWidth: 15,
+                        itemMarkHeight: 15,
+                        markGap: 8,
+                        itemGap: 12,
+                        labelStyle: {
+                          fontSize: 13,
+                          fontWeight: 600,
+                          fill: '#374151',
+                        }
+                      },
+                    }}
+                    sx={{
+                      [`& .${pieArcLabelClasses.root}`]: {
+                        fill: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                      },
+                      [`& .${pieArcLabelClasses.root}.${pieArcLabelClasses.animate}`]: {
+                        animationDuration: '1.5s',
+                      },
+                      '& .MuiPieArc-root': {
+                        stroke: 'white',
+                        strokeWidth: 2,
+                        transition: 'all 0.3s ease',
+                      },
+                      '& .MuiPieArc-root:hover': {
+                        filter: 'brightness(1.1)',
+                        transform: 'scale(1.05)',
+                      },
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -404,31 +457,29 @@ const StatisticsPage = () => {
               </h3>
 
               <div className="grid grid-cols-2 gap-10">
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <label className="text-xs font-semibold italic w-32">
+                    <label className="text-sm font-semibold italic w-40">
                       SELECCIONA EL<br/>DEPARTAMENTO
                     </label>
                     <div className="flex-1 relative">
                       <button 
                         onClick={() => setIsDepartamentoOpen(!isDepartamentoOpen)}
-                        className="w-full bg-white border border-gray-300 rounded-full px-4 py-2 flex items-center justify-between text-xs hover:border-gray-400"
+                        className="w-full bg-white border border-gray-300 rounded-full px-6 py-3 flex items-center justify-between text-sm hover:border-gray-400 shadow-sm"
                       >
-                        <span>{selectedDepartamento || 'SELECCIONAR'}</span>
-                        <ChevronDown size={16} className={`transition-transform ${isDepartamentoOpen ? 'rotate-180' : ''}`} />
+                        <span className="font-medium">{selectedDepartamento || 'SELECCIONAR'}</span>
+                        <ChevronDown size={18} className={`transition-transform ${isDepartamentoOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {isDepartamentoOpen && (
-                        <div className="absolute top-full mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+                        <div className="absolute top-full mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
                           {departamentos.map((dep) => (
                             <button
                               key={dep}
                               onClick={() => {
                                 setSelectedDepartamento(dep);
                                 setIsDepartamentoOpen(false);
-                                setSelectedProvincia('');
-                                setSelectedDistrito('');
                               }}
-                              className="w-full px-4 py-2 text-left text-xs hover:bg-gray-100"
+                              className="w-full px-6 py-3 text-left text-sm hover:bg-gray-100 font-medium"
                             >
                               {dep}
                             </button>
@@ -438,83 +489,27 @@ const StatisticsPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <label className="text-xs font-semibold italic w-32">
-                      SELECCIONA LA<br/>PROVINCIA
-                    </label>
-                    <div className="flex-1 relative">
-                      <button 
-                        onClick={() => selectedDepartamento && setIsProvinciaOpen(!isProvinciaOpen)}
-                        disabled={!selectedDepartamento}
-                        className="w-full bg-white border border-gray-300 rounded-full px-4 py-2 flex items-center justify-between text-xs hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span>{selectedProvincia || 'SELECCIONAR'}</span>
-                        <ChevronDown size={16} className={`transition-transform ${isProvinciaOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {isProvinciaOpen && selectedDepartamento && provincias[selectedDepartamento] && (
-                        <div className="absolute top-full mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
-                          {provincias[selectedDepartamento].map((prov) => (
-                            <button
-                              key={prov}
-                              onClick={() => {
-                                setSelectedProvincia(prov);
-                                setIsProvinciaOpen(false);
-                                setSelectedDistrito('');
-                              }}
-                              className="w-full px-4 py-2 text-left text-xs hover:bg-gray-100"
-                            >
-                              {prov}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                  <div className="bg-white rounded-2xl p-6 space-y-4 shadow-sm">
+                    <h4 className="font-bold text-gray-800 mb-4 text-sm uppercase border-b pb-2">
+                      Información Regional
+                    </h4>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm font-semibold text-gray-700">TOTAL DE HABITANTES</span>
+                      <span className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-full px-6 py-2 text-sm font-bold text-gray-800">
+                        {regionalStats.habitantes.toLocaleString()}
+                      </span>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <label className="text-xs font-semibold italic w-32">
-                      SELECCIONA EL<br/>DISTRITO
-                    </label>
-                    <div className="flex-1 relative">
-                      <button 
-                        onClick={() => selectedProvincia && setIsDistritoOpen(!isDistritoOpen)}
-                        disabled={!selectedProvincia}
-                        className="w-full bg-white border border-gray-300 rounded-full px-4 py-2 flex items-center justify-between text-xs hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span>{selectedDistrito || 'SELECCIONAR'}</span>
-                        <ChevronDown size={16} className={`transition-transform ${isDistritoOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {isDistritoOpen && selectedProvincia && distritos[selectedProvincia] && (
-                        <div className="absolute top-full mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
-                          {distritos[selectedProvincia].map((dist) => (
-                            <button
-                              key={dist}
-                              onClick={() => {
-                                setSelectedDistrito(dist);
-                                setIsDistritoOpen(false);
-                              }}
-                              className="w-full px-4 py-2 text-left text-xs hover:bg-gray-100"
-                            >
-                              {dist}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm font-semibold text-gray-700">TASA DE PARTICIPACIÓN</span>
+                      <span className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-full px-6 py-2 text-sm font-bold text-gray-800">
+                        {regionalStats.participacion}%
+                      </span>
                     </div>
-                  </div>
-
-                  <div className="space-y-2 pt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs italic uppercase">TOTAL DE<br/>HABITANTES</span>
-                      <span className="bg-white rounded-full px-6 py-2 text-xs font-bold">{regionalStats.habitantes.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs italic uppercase">TASA DE<br/>PARTICIPACIÓN</span>
-                      <span className="bg-white rounded-full px-6 py-2 text-xs font-bold">{regionalStats.participacion}%</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs italic uppercase">VOTOS EN<br/>BLANCO</span>
-                      <span className="bg-white rounded-full px-6 py-2 text-xs font-bold">{regionalStats.votosBlanco}</span>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm font-semibold text-gray-700">VOTOS EN BLANCO</span>
+                      <span className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-full px-6 py-2 text-sm font-bold text-gray-800">
+                        {regionalStats.votosBlanco}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -522,10 +517,8 @@ const StatisticsPage = () => {
                 <div>
                   <div className="flex items-center justify-center gap-3 mb-8">
                     <MapPin size={22} className="text-gray-600" />
-                    <span className="text-base font-semibold">
-                      {selectedDepartamento && selectedProvincia && selectedDistrito 
-                        ? `${selectedDepartamento.toUpperCase()}, ${selectedProvincia.toUpperCase()}, ${selectedDistrito.toUpperCase()}`
-                        : 'LIMA, LIMA, SJL'}
+                    <span className="text-base font-semibold text-gray-800">
+                      {selectedDepartamento ? selectedDepartamento.toUpperCase() : 'LIMA'}
                     </span>
                   </div>
 
@@ -544,12 +537,19 @@ const StatisticsPage = () => {
                         
                         <div className="relative" style={{ height: `${candidate.height}px`, width: '80px' }}>
                           <div 
-                            className="absolute bottom-0 left-0 w-full h-full rounded-t-2xl"
+                            className="absolute bottom-0 left-0 w-full h-full rounded-t-2xl flex items-center justify-center"
                             style={{ 
                               background: `linear-gradient(180deg, ${candidate.color} 0%, ${candidate.color}ee 50%, ${candidate.color}cc 100%)`,
                               boxShadow: `6px 0 20px rgba(0,0,0,0.3), inset -4px 0 10px rgba(0,0,0,0.2)`
                             }}
                           >
+                            {candidate.logoUrl && candidate.logoUrl.trim() !== '' && (
+                              <img 
+                                src={candidate.logoUrl} 
+                                alt={candidate.name}
+                                className="w-12 h-12 object-contain opacity-30"
+                              />
+                            )}
                             <div 
                               className="absolute top-0 left-3 rounded-t-lg"
                               style={{ 

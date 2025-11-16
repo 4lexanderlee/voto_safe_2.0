@@ -36,23 +36,40 @@ export default function PartyDetailPage() {
 
   const handleSaveParty = (partyData: Omit<Party, 'id' | 'electionId' | 'electionName' | 'createdAt'>) => {
     try {
+      // ✅ LOG para verificar que logoUrl viene del modal
+      console.log('📝 Datos recibidos del modal:', partyData);
+      console.log('📝 logoUrl recibido:', partyData.logoUrl);
+      
+      // ✅ SOLUCIÓN: Construir el objeto explícitamente para asegurar que logoUrl se incluya
       const fullPartyData: Party = {
         id: editingParty?.id || crypto.randomUUID(),
         electionId: election.id,
         electionName: election.name,
+        name: partyData.name,
+        representative: partyData.representative,
+        logoUrl: partyData.logoUrl, // ⬅️ CRÍTICO: Incluir explícitamente logoUrl
+        candidates: partyData.candidates,
         createdAt: editingParty?.createdAt || new Date().toISOString(),
-        ...partyData,
       };
 
+      // ✅ LOG para verificar el partido completo antes de guardarlo
+      console.log('💾 Partido completo a guardar:', fullPartyData);
+      console.log('💾 logoUrl del partido:', fullPartyData.logoUrl);
+
       if (editingParty) {
+        console.log('✏️ Actualizando partido existente');
         updateParty(editingParty.id, fullPartyData);
       } else {
+        console.log('➕ Agregando nuevo partido');
         addParty(fullPartyData);
       }
       
       setShowAddModal(false);
       setEditingParty(null);
+      
+      console.log('✅ Partido guardado exitosamente');
     } catch (error) {
+      console.error('❌ Error al guardar partido:', error);
       if (error instanceof Error) {
         alert(error.message);
       }
