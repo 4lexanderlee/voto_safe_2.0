@@ -13,11 +13,11 @@ export default function UserLayout() {
   const handleLogout = () => {
     logout();
     setShowLogoutModal(false);
-    navigate("/auth/login");
+    navigate("/user");
   };
 
   if (!user) {
-    navigate("/auth/login");
+    navigate("/user");
     return null;
   }
 

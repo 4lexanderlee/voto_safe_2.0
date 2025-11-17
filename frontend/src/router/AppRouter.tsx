@@ -1,9 +1,10 @@
 // ===============================================
 // File: src/router/AppRouter.tsx
 // ===============================================
-import { Navigate } from "react-router-dom";
+
+import { Navigate, Outlet } from "react-router-dom";
 import AdminLayout from "@/components/layout/AdminLayout";
-import UserLayout from "@/components/layout/UserLayout";
+//import UserLayout from "@/components/layout/UserLayout";
 import DashboardPage from "@/pages/admin/Dashboard/DashboardPage";
 import BallotsPage from "@/pages/admin/Ballots/BallotsPage";
 import BallotDetailPage from "@/pages/admin/Ballots/BallotDetailPage";
@@ -12,11 +13,11 @@ import StatisticsPage from "@/pages/admin/Statistics/StatisticsPage";
 import ElectionsPage from "@/pages/admin/Elections/ElectionsPage";
 import PartiesPage from "@/pages/admin/Parties/PartiesPage";
 import PartyDetailPage from "@/pages/admin/Parties/PartyDetailPage";
-import LandingPage from "@/pages/landing/LandingPage";
-import LoginPage from "@/pages/auth/LoginPage";
-import RegisterPage from "@/pages/auth/RegisterPage";
+import LandingPage from "./../pages/LandingPage";
+import ElectionSelectorPage from "./../pages/ElectionSelectorPage";
 import UserBallotsPage from "@/pages/user/UserBallotsPage";
 import UserBallotDetailPage from "@/pages/user/UserBallotDetailPage";
+import UserDashbord from "./../pages/userDashbord";
 
 // Rutas exportadas para fácil acceso
 export const ROUTES = {
@@ -36,6 +37,7 @@ export const ROUTES = {
   },
   USER: {
     ROOT: "/user",
+    DASHBORD:"/user/dashbord",
     BALLOTS: "/user/ballots",
     BALLOT_DETAIL: "/user/ballots/:electionId",
   },
@@ -45,14 +47,6 @@ export const routes = [
   {
     path: "/",
     element: <LandingPage />,
-  },
-  {
-    path: "/auth/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "/auth/register",
-    element: <RegisterPage />,
   },
   {
     path: "/admin",
@@ -71,9 +65,10 @@ export const routes = [
   },
   {
     path: "/user",
-    element: <UserLayout />,
+    element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="ballots" /> },
+      { index:true, element:<ElectionSelectorPage/>},
+      { path:"dashbord",element:<UserDashbord/> },
       { path: "ballots", element: <UserBallotsPage /> },
       { path: "ballots/:electionId", element: <UserBallotDetailPage /> },
     ],

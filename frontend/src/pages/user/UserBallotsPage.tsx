@@ -14,7 +14,7 @@ export default function UserBallotsPage() {
   const [showGuide, setShowGuide] = useState(true);
 
   if (!user) {
-    navigate("/auth/login");
+    navigate("/");
     return null;
   }
 

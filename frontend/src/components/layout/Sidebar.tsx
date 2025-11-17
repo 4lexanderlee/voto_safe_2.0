@@ -1,5 +1,5 @@
 // src/components/layout/Sidebar.tsx
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, Vote, Users, Building2, BarChart2, LogOut } from "lucide-react"; //FileBadge
 import { ADMIN_ROUTES } from "@/router/routes";
 import { useState } from "react";
@@ -10,7 +10,7 @@ export default function Sidebar() {
   
   // Sidebar expandido solo en dashboard
   const isExpanded = location.pathname === ADMIN_ROUTES.DASHBOARD;
-
+  const navigate = useNavigate();
   const links = [
     { to: ADMIN_ROUTES.DASHBOARD, label: "Página Principal", icon: Home },
     { to: ADMIN_ROUTES.VOTERS, label: "Lista de Votantes", icon: Users },
@@ -21,6 +21,7 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     // Aquí irá la lógica de logout
+    navigate('/');
     console.log("Logout");
     setShowLogoutModal(false);
   };

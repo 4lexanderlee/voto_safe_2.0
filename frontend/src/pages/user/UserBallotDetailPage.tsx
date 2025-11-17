@@ -12,7 +12,7 @@ export default function UserBallotDetailPage() {
   const { user } = useAuth();
 
   if (!user || !electionId) {
-    navigate("/auth/login");
+    navigate("/");
     return null;
   }
 
